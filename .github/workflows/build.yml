@@ -5,7 +5,6 @@ name: build-and-push
 on:
   push:
     branches: [main]
-    paths: [Dockerfile, handler.py, .github/workflows/build.yml]
   workflow_dispatch:
 
 jobs:
