@@ -18,10 +18,10 @@ Source: https://huggingface.co/tencent/Hunyuan3D-2.1
 
 Two sub-models, loaded by two pipeline classes (same class names as 2.0 — our plan carries over):
 
-| Model | Role | Pipeline class |
-|---|---|---|
-| Hunyuan3D-Shape-v2-1 (3.3B) | image → mesh geometry (flow-matching DiT) | `Hunyuan3DDiTFlowMatchingPipeline` |
-| Hunyuan3D-Paint-v2-1 (2B) | mesh + image → **PBR materials** (albedo / metallic / roughness) | `Hunyuan3DPaintPipeline` |
+| Model                       | Role                                                             | Pipeline class                     |
+| --------------------------- | ---------------------------------------------------------------- | ---------------------------------- |
+| Hunyuan3D-Shape-v2-1 (3.3B) | image → mesh geometry (flow-matching DiT)                        | `Hunyuan3DDiTFlowMatchingPipeline` |
+| Hunyuan3D-Paint-v2-1 (2B)   | mesh + image → **PBR materials** (albedo / metallic / roughness) | `Hunyuan3DPaintPipeline`           |
 
 **Why 2.1:** PBR output lights correctly in real engines (Unreal/Unity/Blender/three.js)
 instead of 2.0's baked-in RGB. Full weights **and training code** released → fine-tunable.
@@ -34,11 +34,13 @@ forces it, fall back to `tencent/Hunyuan3D-2mini` for shape (no PBR there).
 ## 2. Parameters to expose (the whole surface)
 
 ### Input / preprocessing
+
 - `image` — path or PIL/base64. Alpha channel used as mask if present.
 - `remove_background` (bool) — run `hy3dgen.rembg.BackgroundRemover` first. Required if image has a background.
 - `text` (optional) — text→3D: run `HunyuanDiTPipeline` (t2i) → feed result as `image`.
 
 ### Shape generation — `Hunyuan3DDiTFlowMatchingPipeline(...)`
+
 - `num_inference_steps` — 30–50. Default 50.
 - `guidance_scale` — CFG strength. Default 5.0–7.5.
 - `octree_resolution` — surface detail: 256 / 384 / 512. Higher = finer + more VRAM/time.
@@ -48,17 +50,20 @@ forces it, fall back to `tencent/Hunyuan3D-2mini` for shape (no PBR there).
 - `output_type` — `'trimesh'`.
 
 ### Mesh cleanup (`from hy3dgen.shapegen import ...`, chain in order)
+
 - `FloaterRemover()` — drop disconnected junk.
 - `DegenerateFaceRemover()` — drop zero-area faces.
 - `FaceReducer()(mesh, max_facenum=...)` — decimate to a face budget (e.g. 40000) for game/web use.
 
 ### Texture generation (PBR) — `Hunyuan3DPaintPipeline(mesh, image=...)`
+
 - Runs de-lighting + multiview diffusion + bake automatically.
 - Outputs **PBR channels**: albedo (base color), metallic, roughness.
 - Knobs: `num_inference_steps`, `guidance_scale`, texture resolution (1024/2048), `seed`.
 - ~21 GB VRAM on its own (§3) — the heavy stage.
 
 ### Export
+
 - `.glb` carries PBR channels natively (metallic-roughness) — use it. Also `.obj`+`.mtl`, `.ply`.
 - `mesh.export('out.glb')`. Verify metallic/roughness maps survive the export.
 
@@ -71,6 +76,7 @@ All of the above become a single JSON request schema (§5).
 **VRAM budget (2.1):** shape **10 GB**, texture **21 GB**, combined **29 GB**.
 
 **GPU choice:**
+
 - **48 GB (A6000 / L40 / L40S)** — runs shape + PBR texture loaded together, simplest. Recommended.
 - **A100 40 GB** — fits combined 29 GB with headroom.
 - **24 GB (RTX 4090 / A5000)** — won't hold both at once. Use the **staged fallback**: run
@@ -78,6 +84,7 @@ All of the above become a single JSON request schema (§5).
   texture (21 GB). Slower per job (reload cost) but works. Set this via a `low_vram` flag.
 
 **Two deploy modes:**
+
 - **Dev / interactive** — GPU Pod from our Docker image, run `gradio_app.py` on port 7860, expose via RunPod proxy. Good for tuning parameters by hand.
 - **Production** — RunPod **Serverless** endpoint with a `handler.py`. Pay per second, autoscales to zero.
 
@@ -93,7 +100,7 @@ All of the above become a single JSON request schema (§5).
    the only real gotcha — paths differ slightly in 2.1's repo, confirm on clone):
    - custom rasterizer → `pip install -e .`
    - differentiable renderer → `pip install -e .`
-   Also `pip install runpod`.
+     Also `pip install runpod`.
 2. **Pre-cache weights** into the network volume (`huggingface-cli download tencent/Hunyuan3D-2.1`)
    so the first job doesn't time out.
 3. **`handler.py`** — RunPod serverless handler. On a 48 GB GPU load both pipelines once at
@@ -124,8 +131,18 @@ All of the above become a single JSON request schema (§5).
       "mc_algo": "mc",
       "seed": 1234
     },
-    "cleanup": { "remove_floaters": true, "remove_degenerate": true, "max_facenum": 40000 },
-    "texture": { "enabled": true, "pbr": true, "num_inference_steps": 30, "resolution": 2048, "seed": 1234 },
+    "cleanup": {
+      "remove_floaters": true,
+      "remove_degenerate": true,
+      "max_facenum": 40000
+    },
+    "texture": {
+      "enabled": true,
+      "pbr": true,
+      "num_inference_steps": 30,
+      "resolution": 2048,
+      "seed": 1234
+    },
     "output_format": "glb"
   }
 }
@@ -144,5 +161,5 @@ All of the above become a single JSON request schema (§5).
 
 ---
 
-*Skipped:* actual code, retries/queueing, multi-format post-processing UI. Add when the
+_Skipped:_ actual code, retries/queueing, multi-format post-processing UI. Add when the
 pod build in §4 is proven working end-to-end.
