@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Model weights / generated 3D assets — never commit these
+*.glb
+*.obj
+*.ply
+*.pth
+*.ckpt
+*.safetensors
+outputs/
+assets/
+
+# Secrets / local env
+.env
+*.local
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
