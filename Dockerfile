@@ -1,7 +1,7 @@
 # Hunyuan3D-2.1 -> RunPod serverless image.
-# ponytail: -devel base needed for nvcc to compile the rasterizer. If this tag
-# 404s on Docker Hub, swap to nvidia/cuda:12.4.1-devel-ubuntu22.04 + install torch below.
-FROM runpod/pytorch:2.5.1-py3.11-cuda12.4.1-devel-ubuntu22.04
+# Official PyTorch -devel image: has torch 2.5.1 + CUDA 12.4 + nvcc (needed to
+# compile the rasterizer). ponytail: -devel not -runtime, or the compile fails.
+FROM pytorch/pytorch:2.5.1-cuda12.4-cudnn9-devel
 
 ENV DEBIAN_FRONTEND=noninteractive \
     HF_HOME=/runpod-volume/hf \
@@ -11,7 +11,7 @@ ENV DEBIAN_FRONTEND=noninteractive \
     TORCH_CUDA_ARCH_LIST="8.0;8.6;8.9+PTX"
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    git wget libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
+    git wget build-essential libgl1 libglib2.0-0 && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 RUN git clone --depth 1 https://github.com/Tencent-Hunyuan/Hunyuan3D-2.1 .
