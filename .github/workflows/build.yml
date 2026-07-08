@@ -25,13 +25,13 @@ jobs:
           echo "===== ENV ====="
           docker inspect --format '{{json .Config.Env}}' thelocallab/hunyuan3d-2.1-comfyui:latest
 
-      - name: List root + dump startup scripts
+      - name: Dump /app/start.sh and any scripts it references
         run: |
           cid=$(docker create thelocallab/hunyuan3d-2.1-comfyui:latest)
-          echo "===== ls / ====="
-          docker export "$cid" | tar -tv 2>/dev/null | grep -iE " \./(start|run|entry|init|boot|setup|pre_|post_).*\.(sh|py)$" || echo "(no obvious script names at root)"
-          echo "===== try to cat common scripts ====="
-          for f in start.sh startup.sh entrypoint.sh run.sh init.sh pre_start.sh post_start.sh start.py; do
-            docker cp "$cid:/$f" "./$f" 2>/dev/null && echo "==== /$f ====" && cat "./$f"
-          done
+          echo "===== /app/start.sh ====="
+          docker cp "$cid:/app/start.sh" ./start.sh && cat ./start.sh
+          echo "===== ls -la /app ====="
+          docker cp "$cid:/app" ./appdir 2>/dev/null && ls -la ./appdir | head -50
+          echo "===== other .sh in /app ====="
+          find ./appdir -maxdepth 2 -name "*.sh" 2>/dev/null | while read f; do echo "==== $f ===="; cat "$f"; done
           docker rm "$cid" >/dev/null
