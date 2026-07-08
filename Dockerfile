@@ -40,7 +40,8 @@ RUN pip install --no-cache-dir -r requirements.txt \
  && pip install --no-cache-dir -r ./custom_nodes/was-node-suite-comfyui/requirements.txt \
  && pip install --no-cache-dir -r ./custom_nodes/ComfyUI-KJNodes/requirements.txt \
  && pip install --no-cache-dir -r ./custom_nodes/rgthree-comfy/requirements.txt \
- && pip install --no-cache-dir onnxruntime==1.16.3 jupyterlab
+ && pip install --no-cache-dir onnxruntime==1.16.3 jupyterlab \
+ && pip install --no-cache-dir "numpy<2"
 
 # --- compile the CUDA extensions (no GPU; arch pinned above) ---
 ENV CUDA_HOME=/etc/alternatives/cuda \

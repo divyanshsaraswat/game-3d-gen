@@ -6,6 +6,10 @@
 set -e
 cd /app/ComfyUI
 
+# Expose the 2.1 example workflows in the ComfyUI sidebar on every boot.
+mkdir -p user/default/workflows
+cp -n custom_nodes/ComfyUI-Hunyuan3d-2-1/workflow_examples/*.json user/default/workflows/ 2>/dev/null || true
+
 mkdir -p /workspace/models/diffusion_models \
          /workspace/models/vae \
          /workspace/models/upscale_models \
