@@ -49,6 +49,11 @@ ENV CUDA_HOME=/etc/alternatives/cuda \
 RUN cd custom_nodes/ComfyUI-Hunyuan3d-2-1/hy3dpaint/custom_rasterizer && python setup.py install \
  && cd ../DifferentiableRenderer && python setup.py install
 
+# --- fix: PBR paint model ships custom code, needs trust_remote_code=True ---
+# Added as the last arg (after the positional model_path) to avoid a SyntaxError.
+RUN sed -i 's/^\(\s*torch_dtype=torch.float16\)$/\1, trust_remote_code=True/' \
+    custom_nodes/ComfyUI-Hunyuan3d-2-1/hy3dpaint/utils/multiview_utils.py
+
 # --- persist models + outputs on the network volume (dirs exist now) ---
 RUN rm -rf /app/ComfyUI/models /app/ComfyUI/output \
  && ln -s /workspace/models /app/ComfyUI/models \
