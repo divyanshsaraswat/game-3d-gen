@@ -13,6 +13,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Base image is large; reclaim ~25GB on the runner so the pull/build fits.
+      - uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+
       - uses: docker/setup-buildx-action@v3
 
       - uses: docker/login-action@v3
@@ -25,5 +30,6 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKERHUB_USERNAME }}/hunyuan3d-21:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
+          # No gha cache: base image is bigger than the 10GB cache limit, caching
+          # it just thrashes. Our own layer is tiny anyway.
+          provenance: false
