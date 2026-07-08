@@ -1,35 +1,37 @@
 name: build-and-push
 
-# Builds the Hunyuan3D-2.1 image on GitHub's CPU runners (no local GPU needed)
-# and pushes to Docker Hub. Trigger: push to main, or run manually.
+# TEMP: inspect the base image's entrypoint + startup script so we can wrap it
+# for persistence. Revert to the build-push job once we know the startup flow.
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 jobs:
-  build:
+  inspect:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Pull base image
+        run: docker pull thelocallab/hunyuan3d-2.1-comfyui:latest
 
-      # Base image is large; reclaim ~25GB on the runner so the pull/build fits.
-      - uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: true
+      - name: Show entrypoint / cmd
+        run: |
+          echo "===== ENTRYPOINT ====="
+          docker inspect --format '{{json .Config.Entrypoint}}' thelocallab/hunyuan3d-2.1-comfyui:latest
+          echo "===== CMD ====="
+          docker inspect --format '{{json .Config.Cmd}}' thelocallab/hunyuan3d-2.1-comfyui:latest
+          echo "===== WORKDIR ====="
+          docker inspect --format '{{.Config.WorkingDir}}' thelocallab/hunyuan3d-2.1-comfyui:latest
+          echo "===== ENV ====="
+          docker inspect --format '{{json .Config.Env}}' thelocallab/hunyuan3d-2.1-comfyui:latest
 
-      - uses: docker/setup-buildx-action@v3
-
-      - uses: docker/login-action@v3
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - uses: docker/build-push-action@v6
-        with:
-          context: .
-          push: true
-          tags: ${{ secrets.DOCKERHUB_USERNAME }}/hunyuan3d-21:latest
-          # No gha cache: base image is bigger than the 10GB cache limit, caching
-          # it just thrashes. Our own layer is tiny anyway.
-          provenance: false
+      - name: List root + dump startup scripts
+        run: |
+          cid=$(docker create thelocallab/hunyuan3d-2.1-comfyui:latest)
+          echo "===== ls / ====="
+          docker export "$cid" | tar -tv 2>/dev/null | grep -iE " \./(start|run|entry|init|boot|setup|pre_|post_).*\.(sh|py)$" || echo "(no obvious script names at root)"
+          echo "===== try to cat common scripts ====="
+          for f in start.sh startup.sh entrypoint.sh run.sh init.sh pre_start.sh post_start.sh start.py; do
+            docker cp "$cid:/$f" "./$f" 2>/dev/null && echo "==== /$f ====" && cat "./$f"
+          done
+          docker rm "$cid" >/dev/null
